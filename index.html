@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8">
+  <title>Relatório - Contas a Pagar</title>
+  <link rel="stylesheet" href="https://cdn.datatables.net/1.13.4/css/jquery.dataTables.min.css">
+  <style>
+    body { font-family: Arial, sans-serif; padding: 20px; }
+    .filtros { margin-bottom: 20px; }
+    .filtros label { margin-right: 10px; }
+  </style>
+</head>
+<body>
+
+  <h2>Contas a Pagar</h2>
+
+  <div class="filtros">
+    <label>Data Início: <input type="date" id="filtroDataInicio"></label>
+    <label>Data Fim: <input type="date" id="filtroDataFim"></label>
+    <label>Situação: 
+      <select id="filtroSituacao">
+        <option value="">Todas</option>
+        <option value="pago">Pago</option>
+        <option value="aberto">Aberto</option>
+      </select>
+    </label>
+    <button id="btnFiltrar">Filtrar</button>
+  </div>
+
+  <table id="tabelaContas" class="display" style="width:100%">
+    <thead>
+      <tr>
+        <th>Fornecedor</th>
+        <th>Valor</th>
+        <th>Vencimento</th>
+        <th>Descrição</th>
+        <th>Situação</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+  <script src="https://cdn.datatables.net/1.13.4/js/jquery.dataTables.min.js"></script>
+  <script>
+    const urlParams = new URLSearchParams(window.location.search);
+    const token = urlParams.get('erpusertoken');
+
+    const tabela = $('#tabelaContas').DataTable();
+
+    function carregarDados(filtros = {}) {
+      $.ajax({
+        url: 'https://novaapi-lb2.vendaerp.com.br/v3/lancamentos/lancamentos',
+        method: 'POST',
+        contentType: 'application/json; charset=UTF-8',
+        headers: {
+          'Authorization': 'Bearer ' + token
+        },
+        data: JSON.stringify({
+          tipo: 'P', // P = contas a pagar, R = a receber
+          dataInicio: filtros.dataInicio || null,
+          dataFim: filtros.dataFim || null,
+          situacao: filtros.situacao || null
+        }),
+        success: function (resposta) {
+          tabela.clear();
+
+          resposta.lancamentos.forEach(function (item) {
+            tabela.row.add([
+              item.fornecedor?.nome || '—',
+              'R$ ' + parseFloat(item.valor).toFixed(2),
+              new Date(item.vencimento).toLocaleDateString('pt-BR'),
+              item.descricao || '',
+              item.situacao === 'P' ? 'Pago' : 'Aberto'
+            ]);
+          });
+
+          tabela.draw();
+        },
+        error: function (xhr) {
+          alert('Erro ao carregar dados: ' + xhr.statusText);
+        }
+      });
+    }
+
+    $('#btnFiltrar').on('click', function () {
+      const filtros = {
+        dataInicio: $('#filtroDataInicio').val(),
+        dataFim: $('#filtroDataFim').val(),
+        situacao: $('#filtroSituacao').val()
+      };
+      carregarDados(filtros);
+    });
+
+    // Carregar inicialmente sem filtros
+    $(document).ready(function () {
+      carregarDados();
+    });
+  </script>
+</body>
+</html>
