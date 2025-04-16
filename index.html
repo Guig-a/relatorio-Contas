@@ -2,100 +2,337 @@
 <html lang="pt-br">
 <head>
   <meta charset="UTF-8">
-  <title>Relatório - Contas a Pagar</title>
-  <link rel="stylesheet" href="https://cdn.datatables.net/1.13.4/css/jquery.dataTables.min.css">
+  <title>Relatório de Receita</title>
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/moment@2.29.4/moment.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/moment@2.29.4/locale/pt-br.js"></script>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.1/dist/css/bootstrap.min.css" rel="stylesheet">
   <style>
-    body { font-family: Arial, sans-serif; padding: 20px; }
-    .filtros { margin-bottom: 20px; }
-    .filtros label { margin-right: 10px; }
+    .table-striped > tbody > tr:nth-child(odd) > td,
+    .table-striped > tbody > tr:nth-child(odd) > th {
+      background-color: #f2f7ff;
+    }
+    .table-light {
+      background-color: #e6f0ff;
+    }
+    .table-bordered, .table-bordered th, .table-bordered td {
+      border: 1px solid #cce0ff;
+    }
   </style>
 </head>
 <body>
+<div class="container mt-4">
+  <h2>Relatório de Receita</h2>
 
-  <h2>Contas a Pagar</h2>
-
-  <div class="filtros">
-    <label>Data Início: <input type="date" id="filtroDataInicio"></label>
-    <label>Data Fim: <input type="date" id="filtroDataFim"></label>
-    <label>Situação: 
-      <select id="filtroSituacao">
-        <option value="">Todas</option>
-        <option value="pago">Pago</option>
-        <option value="aberto">Aberto</option>
+  <div class="row mb-3">
+    <div class="col-md-3">
+      <label for="filtroCliente" class="form-label">Cliente</label>
+      <input type="text" id="filtroCliente" class="form-control" placeholder="Filtrar por cliente">
+    </div>
+    <div class="col-md-3">
+      <label for="filtroStatus" class="form-label">Status</label>
+      <select id="filtroStatus" class="form-control">
+        <option value="">Todos os Status</option>
+        <option value="Liquidado">Liquidado</option>
+        <option value="Em Aberto">Em Aberto</option>
+        <option value="Em Atraso">Em Atraso</option>
+        <option value="Vencendo Hoje">Vencendo Hoje</option>
       </select>
-    </label>
-    <button id="btnFiltrar">Filtrar</button>
+    </div>
+    <div class="col-md-3">
+      <label for="filtroPlanoDeContas" class="form-label">Plano de Contas</label>
+      <input type="text" id="filtroPlanoDeContas" class="form-control" placeholder="Filtrar por plano de contas">
+    </div>
+    <div class="col-md-3">
+      <label for="filtroContaBancaria" class="form-label">Conta Bancária</label>
+      <input type="text" id="filtroContaBancaria" class="form-control" placeholder="Filtrar por conta bancária">
+    </div>
   </div>
 
-  <table id="tabelaContas" class="display" style="width:100%">
-    <thead>
-      <tr>
-        <th>Fornecedor</th>
-        <th>Valor</th>
-        <th>Vencimento</th>
-        <th>Descrição</th>
-        <th>Situação</th>
-      </tr>
+  <div class="row mb-3">
+    <div class="col-md-3">
+      <label for="barraPesquisa" class="form-label">Busca Geral</label>
+      <input type="text" id="barraPesquisa" class="form-control" placeholder="Pesquisar em qualquer campo">
+    </div>
+  </div>
+
+  <button class="btn btn-primary mb-3" onclick="carregarReceitas()">Carregar Receita</button>
+  <button class="btn btn-info mb-3" onclick="imprimirTabelaComLayout()">Imprimir com Layout</button>
+
+  <table class="table table-bordered table-hover table-striped">
+    <thead class="table-light">
+    <tr>
+      <th>Nota Fiscal</th>
+      <th>Data Competência</th>
+      <th>Razão Social</th>
+      <th>Plano de Contas</th>
+      <th>Total</th>
+      <th>Total Pago</th>
+      <th>Data Vencimento</th>
+      <th>Data Quitação</th>
+      <th>Conta Bancária</th>
+      <th>Status</th>
+    </tr>
     </thead>
-    <tbody></tbody>
+    <tbody id="tabelaReceita"></tbody>
+    <tfoot id="tabelaFooter"></tfoot>
   </table>
+</div>
 
-  <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
-  <script src="https://cdn.datatables.net/1.13.4/js/jquery.dataTables.min.js"></script>
-  <script>
+<script>
+  let todosOsItens = [];
+
+  // Função para capturar o token da URL
+  function getErpUserTokenFromURL() {
     const urlParams = new URLSearchParams(window.location.search);
-    const token = urlParams.get('erpusertoken');
+    return urlParams.get('erpusertoken');
+  }
 
-    const tabela = $('#tabelaContas').DataTable();
+  function carregarReceitas() {
+    todosOsItens = [];
+    let paginaAtual = 0;
+    const itensPorPagina = 100;
 
-    function carregarDados(filtros = {}) {
+    // Captura o token da URL
+    const token = getErpUserTokenFromURL();
+
+    if (!token) {
+      console.error("Token não encontrado na URL.");
+      alert("Erro: Token de autenticação não encontrado na URL. Por favor, acesse a página pelo botão correto.");
+      return;
+    }
+
+    function buscarPagina() {
       $.ajax({
         url: 'https://novaapi-lb2.vendaerp.com.br/v3/lancamentos/lancamentos',
         method: 'POST',
-        contentType: 'application/json; charset=UTF-8',
+        contentType: 'application/json',
         headers: {
-          'Authorization': 'Bearer ' + token
+          'Authorization': 'Bearer ' + token, // Usa o token da URL
+          'Authorization-Token': token,       // Ajuste conforme necessário
+          'User': 'erp@lumiar.com.br',
+          'App': 'relatorio'
         },
         data: JSON.stringify({
-          tipo: 'P', // P = contas a pagar, R = a receber
-          dataInicio: filtros.dataInicio || null,
-          dataFim: filtros.dataFim || null,
-          situacao: filtros.situacao || null
+          pagina: { number: paginaAtual, lenght: itensPorPagina },
+          order: { ascending: false, fieldName: "CodigoSequencial" },
+          filtro: {
+            ehPesquisaSimples: false,
+            tipoLancamento: 1,
+            situacaoLancamento: 0,
+            cliente: "",
+            clienteId: "",
+            dataInicial: "2025-01-01T00:00:00.000Z",
+            dataFinal: "2025-12-31T23:59:59.999Z",
+            filtrarPor: "DataVencimento",
+            periodoData: 10
+          }
         }),
-        success: function (resposta) {
-          tabela.clear();
+        success: function (res) {
+          const itens = res?.Data?.Itens || [];
+          todosOsItens = todosOsItens.concat(itens);
 
-          resposta.lancamentos.forEach(function (item) {
-            tabela.row.add([
-              item.fornecedor?.nome || '—',
-              'R$ ' + parseFloat(item.valor).toFixed(2),
-              new Date(item.vencimento).toLocaleDateString('pt-BR'),
-              item.descricao || '',
-              item.situacao === 'P' ? 'Pago' : 'Aberto'
-            ]);
-          });
-
-          tabela.draw();
+          if (itens.length === itensPorPagina) {
+            paginaAtual++;
+            buscarPagina();
+          } else {
+            renderizarTabela();
+          }
         },
-        error: function (xhr) {
-          alert('Erro ao carregar dados: ' + xhr.statusText);
+        error: function (xhr, status, error) {
+          console.error("Erro:", status, error);
+          alert("Erro ao carregar os dados. Verifique o token ou a conexão com a API.");
         }
       });
     }
 
-    $('#btnFiltrar').on('click', function () {
-      const filtros = {
-        dataInicio: $('#filtroDataInicio').val(),
-        dataFim: $('#filtroDataFim').val(),
-        situacao: $('#filtroSituacao').val()
-      };
-      carregarDados(filtros);
+    buscarPagina();
+  }
+
+  function renderizarTabela() {
+    const filtroCliente = $('#filtroCliente').val().toLowerCase();
+    const filtroStatus = $('#filtroStatus').val();
+    const filtroPlanoDeContas = $('#filtroPlanoDeContas').val().toLowerCase();
+    const filtroContaBancaria = $('#filtroContaBancaria').val().toLowerCase();
+    const barraPesquisa = $('#barraPesquisa').val().toLowerCase();
+    const tbody = $('#tabelaReceita');
+    const tfoot = $('#tabelaFooter');
+    tbody.empty();
+    tfoot.empty();
+
+    let totalGeral = 0;
+    let totalPagoGeral = 0;
+    const hoje = moment().startOf('day');
+
+    const resultadosFiltrados = todosOsItens.filter(item => {
+      const status = mapearStatus(item, hoje);
+      const cliente = item.Cliente?.toLowerCase() || '';
+      const planoDeContas = item.PlanoDeConta?.toLowerCase() || '';
+      const contaBancaria = item.Banco?.toLowerCase() || '';
+      const numeroDocumento = (item.NumeroDocumento || '').toString().toLowerCase();
+
+      const clienteOK = filtroCliente === '' || cliente.includes(filtroCliente);
+      const statusOK = filtroStatus === '' || status === filtroStatus;
+      const planoOK = filtroPlanoDeContas === '' || planoDeContas.includes(filtroPlanoDeContas);
+      const contaOK = filtroContaBancaria === '' || contaBancaria.includes(filtroContaBancaria);
+
+      const pesquisaGeralOK =
+        barraPesquisa === '' ||
+        cliente.includes(barraPesquisa) ||
+        planoDeContas.includes(barraPesquisa) ||
+        contaBancaria.includes(barraPesquisa) ||
+        numeroDocumento.includes(barraPesquisa);
+
+      return clienteOK && statusOK && planoOK && contaOK && pesquisaGeralOK;
     });
 
-    // Carregar inicialmente sem filtros
-    $(document).ready(function () {
-      carregarDados();
+    if (resultadosFiltrados.length === 0) {
+      tbody.append('<tr><td colspan="10" class="text-center">Nenhum resultado encontrado.</td></tr>');
+      return;
+    }
+
+    resultadosFiltrados.forEach(item => {
+      const status = mapearStatus(item, hoje);
+      totalGeral += (item.Valor || 0);
+      totalPagoGeral += (item.ValorPago || 0);
+
+      tbody.append(`
+        <tr>
+          <td>${item.NumeroDocumento || '-'}</td>
+          <td>${item.DataCompetencia || '-'}</td>
+          <td>${item.Cliente || '-'}</td>
+          <td>${item.PlanoDeConta || '-'}</td>
+          <td>R$ ${formatarMoeda(item.Valor)}</td>
+          <td>R$ ${formatarMoeda(item.ValorPago)}</td>
+          <td>${item.DataVencimento || '-'}</td>
+          <td>${item.DataPagamento || '-'}</td>
+          <td>${item.Banco || '-'}</td>
+          <td>${status}</td>
+        </tr>
+      `);
     });
-  </script>
+
+    tfoot.append(`
+      <tr>
+        <td colspan="4" style="text-align:right; font-weight: bold;">Total</td>
+        <td style="font-weight: bold;">R$ ${formatarMoeda(totalGeral)}</td>
+        <td style="font-weight: bold;">R$ ${formatarMoeda(totalPagoGeral)}</td>
+        <td colspan="4"></td>
+      </tr>
+    `);
+  }
+
+  function formatarMoeda(valor) {
+    return (valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+  }
+
+  function mapearStatus(item, hoje) {
+    if (item.Pago) return 'Liquidado';
+
+    const venc = moment(item.DataVencimento, 'DD/MM/YYYY', true);
+    if (!venc.isValid()) return 'Data Inválida';
+
+    if (venc.isBefore(hoje)) return 'Em Atraso';
+    if (venc.isSame(hoje)) return 'Vencendo Hoje';
+    return 'Em Aberto';
+  }
+
+  $('#filtroCliente, #filtroStatus, #filtroPlanoDeContas, #filtroContaBancaria, #barraPesquisa')
+    .on('input change', renderizarTabela);
+
+  function gerarConteudoImpressao() {
+    const hoje = moment().startOf('day');
+    const resultadosFiltrados = todosOsItens.filter(item => {
+      const filtroCliente = $('#filtroCliente').val().toLowerCase();
+      const filtroStatus = $('#filtroStatus').val();
+      const filtroPlanoDeContas = $('#filtroPlanoDeContas').val().toLowerCase();
+      const filtroContaBancaria = $('#filtroContaBancaria').val().toLowerCase();
+      const barraPesquisa = $('#barraPesquisa').val().toLowerCase();
+
+      const status = mapearStatus(item, hoje);
+      const cliente = item.Cliente?.toLowerCase() || '';
+      const planoDeContas = item.PlanoDeConta?.toLowerCase() || '';
+      const contaBancaria = item.Banco?.toLowerCase() || '';
+      const numeroDocumento = (item.NumeroDocumento || '').toString().toLowerCase();
+
+      const clienteOK = filtroCliente === '' || cliente.includes(filtroCliente);
+      const statusOK = filtroStatus === '' || status === filtroStatus;
+      const planoOK = filtroPlanoDeContas === '' || planoDeContas.includes(filtroPlanoDeContas);
+      const contaOK = filtroContaBancaria === '' || contaBancaria.includes(filtroContaBancaria);
+
+      const pesquisaGeralOK =
+        barraPesquisa === '' ||
+        cliente.includes(barraPesquisa) ||
+        planoDeContas.includes(barraPesquisa) ||
+        contaBancaria.includes(barraPesquisa) ||
+        numeroDocumento.includes(barraPesquisa);
+
+      return clienteOK && statusOK && planoOK && contaOK && pesquisaGeralOK;
+    });
+
+    if (resultadosFiltrados.length === 0) {
+      return '<p>Nenhum resultado encontrado para impressão.</p>';
+    }
+
+    const receitasPorCliente = {};
+    resultadosFiltrados.forEach(item => {
+      const cliente = item.Cliente || 'CONSUMIDOR NÃO IDENTIFICADO';
+      if (!receitasPorCliente[cliente]) {
+        receitasPorCliente[cliente] = [];
+      }
+      receitasPorCliente[cliente].push(item);
+    });
+
+    let conteudoImpressao = '<div><h2>Relatório de Receita</h2>';
+    let totalGeral = 0;
+    let totalPagoGeral = 0;
+
+    for (const cliente in receitasPorCliente) {
+      const receitasDoCliente = receitasPorCliente[cliente];
+      let totalCliente = 0;
+      let totalPagoCliente = 0;
+
+      conteudoImpressao += `<p style="font-weight: bold; border-top: 3px solid black; padding-top: 10px;">${cliente}</p>`;
+      conteudoImpressao += '<table style="width: 100%; border-collapse: collapse;">';
+      conteudoImpressao += '<thead><tr><th style="border-top: 1px solid black; border-bottom: 1px solid black; border-left: none; border-right: none; padding: 5px;">Nota Fiscal</th><th style="border-top: 1px solid black; border-bottom: 1px solid black; border-left: none; border-right: none; padding: 5px;">Comp.</th><th style="border-top: 1px solid black; border-bottom: 1px solid black; border-left: none; border-right: none; padding: 5px;">P. Conta</th><th style="border-top: 1px solid black; border-bottom: 1px solid black; border-left: none; border-right: none; padding: 5px;">Total</th><th style="border-top: 1px solid black; border-bottom: 1px solid black; border-left: none; border-right: none; padding: 5px;">Pago</th><th style="border-top: 1px solid black; border-bottom: 1px solid black; border-left: none; border-right: none; padding: 5px;">Venc.</th><th style="border-top: 1px solid black; border-bottom: 1px solid black; border-left: none; border-right: none; padding: 5px;">Receb.</th><th style="border-top: 1px solid black; border-bottom: 1px solid black; border-left: none; border-right: none; padding: 5px;">Banco</th><th style="border-top: 1px solid black; border-bottom: 1px solid black; border-left: none; border-right: none; padding: 5px;">Status</th></tr></thead><tbody>';
+
+      receitasDoCliente.forEach(item => {
+        const status = mapearStatus(item, hoje);
+        totalCliente += (item.Valor || 0);
+        totalPagoCliente += (item.ValorPago || 0);
+
+        conteudoImpressao += `<tr><td style="border-top: none; border-bottom: 1px solid black; border-left: none; border-right: none; padding: 5px;">${item.NumeroDocumento || '-'}</td><td style="border-top: none; border-bottom: 1px solid black; border-left: none; border-right: none; padding: 5px;">${item.DataCompetencia || '-'}</td><td style="border-top: none; border-bottom: 1px solid black; border-left: none; border-right: none; padding: 5px;">${item.PlanoDeConta || '-'}</td><td style="border-top: none; border-bottom: 1px solid black; border-left: none; border-right: none; padding: 5px;">R$ ${formatarMoeda(item.Valor)}</td><td style="border-top: none; border-bottom: 1px solid black; border-left: none; border-right: none; padding: 5px;">R$ ${formatarMoeda(item.ValorPago)}</td><td style="border-top: none; border-bottom: 1px solid black; border-left: none; border-right: none; padding: 5px;">${item.DataVencimento || '-'}</td><td style="border-top: none; border-bottom: 1px solid black; border-left: none; border-right: none; padding: 5px;">${item.DataPagamento || '-'}</td><td style="border-top: none; border-bottom: 1px solid black; border-left: none; border-right: none; padding: 5px;">${item.Banco || '-'}</td><td style="border-top: none; border-bottom: 1px solid black; border-left: none; border-right: none; padding: 5px;">${status}</td></tr>`;
+      });
+
+      conteudoImpressao += `</tbody><tfoot><tr><td colspan="3" style="text-align:right; font-weight: bold; border-top: 1px solid black; border-bottom: 1px solid black; border-left: none; border-right: none; padding: 5px;">Total Cliente:</td><td style="font-weight: bold; border-top: 1px solid black; border-bottom: 1px solid black; border-left: none; border-right: none; padding: 5px;">R$ ${formatarMoeda(totalCliente)}</td><td style="font-weight: bold; border-top: 1px solid black; border-bottom: 1px solid black; border-left: none; border-right: none; padding: 5px;">R$ ${formatarMoeda(totalPagoCliente)}</td><td colspan="4" style="border-top: 1px solid black; border-bottom: 1px solid black; border-left: none; border-right: none;"></td></tr></tfoot></table><br>`;
+      totalGeral += totalCliente;
+      totalPagoGeral += totalPagoCliente;
+    }
+
+    conteudoImpressao += `<p style="text-align:right; font-weight: bold;">Total Geral: R$ ${formatarMoeda(totalGeral)}</p>`;
+    conteudoImpressao += `<p style="text-align:right; font-weight: bold;">Total Pago Geral: R$ ${formatarMoeda(totalPagoGeral)}</p></div>`;
+
+    return conteudoImpressao;
+  }
+
+  function imprimirTabelaComLayout() {
+    const elementosParaEsconder = document.querySelectorAll('body > div > *:not(.container-impressao)');
+    elementosParaEsconder.forEach(elemento => {
+      elemento.style.display = 'none';
+    });
+
+    const containerImpressao = document.createElement('div');
+    containerImpressao.className = 'container-impressao';
+    containerImpressao.innerHTML = gerarConteudoImpressao();
+    document.body.appendChild(containerImpressao);
+
+    window.print();
+
+    document.body.removeChild(containerImpressao);
+    elementosParaEsconder.forEach(elemento => {
+      elemento.style.display = '';
+    });
+  }
+</script>
 </body>
 </html>
