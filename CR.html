@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8">
+  <title>Relatório de Contas a Receber</title>
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/moment@2.29.4/moment.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/moment@2.29.4/locale/pt-br.js"></script>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.1/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    .table-striped > tbody > tr:nth-child(odd) > td,
+    .table-striped > tbody > tr:nth-child(odd) > th {
+      background-color: #f2f7ff;
+    }
+    .table-light {
+      background-color: #e6f0ff;
+    }
+    .table-bordered, .table-bordered th, .table-bordered td {
+      border: 1px solid #cce0ff;
+    }
+    .pagination-controls {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-top: 10px;
+    }
+    .pagination-controls select {
+      margin-left: 10px;
+      margin-right: 10px;
+    }
+    .pagination-controls .btn {
+      margin: 0 5px;
+    }
+    @media print {
+      .container-impressao {
+        font-size: 10px;
+        line-height: 1.2;
+      }
+      .container-impressao table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+      .container-impressao th, .container-impressao td {
+        padding: 3px;
+      }
+      .container-impressao p {
+        margin: 5px 0;
+      }
+      .pagination-controls, #indiceItens {
+        display: none;
+      }
+    }
+  </style>
+</head>
+<body>
+<div class="container mt-4">
+  <h2>Relatório de Contas a Receber</h2>
+
+  <div class="row mb-3">
+    <div class="col-md-3">
+      <label for="filtroCliente" class="form-label">Cliente</label>
+      <input type="text" id="filtroCliente" class="form-control" placeholder="Filtrar por cliente">
+    </div>
+    <div class="col-md-3">
+      <label for="filtroStatus" class="form-label">Status</label>
+      <select id="filtroStatus" class="form-control">
+        <option value="">Todos os Status</option>
+        <option value="Liquidado">Liquidado</option>
+        <option value="Em Aberto">Em Aberto</option>
+        <option value="Em Atraso">Em Atraso</option>
+        <option value="Vencendo Hoje">Vencendo Hoje</option>
+      </select>
+    </div>
+    <div class="col-md-3">
+      <label for="filtroPlanoDeContas" class="form-label">Plano de Contas</label>
+      <input type="text" id="filtroPlanoDeContas" class="form-control" placeholder="Filtrar por plano de contas">
+    </div>
+    <div class="col-md-3">
+      <label for="filtroContaBancaria" class="form-label">Conta Bancária</label>
+      <input type="text" id="filtroContaBancaria" class="form-control" placeholder="Filtrar por conta bancária">
+    </div>
+  </div>
+
+  <div class="row mb-3">
+    <div class="col-md-3">
+      <label for="filtroDataTipo" class="form-label">Filtrar Data por</label>
+      <select id="filtroDataTipo" class="form-control">
+        <option value="">Não Filtrar por Data</option>
+        <option value="DataVencimento" selected>Vencimento</option>
+        <option value="DataCompetencia">Competência</option>
+        <option value="DataPagamento">Quitação</option>
+      </select>
+    </div>
+    <div class="col-md-3">
+      <label for="filtroDataInicio" class="form-label">Data Início</label>
+      <input type="date" id="filtroDataInicio" class="form-control">
+    </div>
+    <div class="col-md-3">
+      <label for="filtroDataFim" class="form-label">Data Fim</label>
+      <input type="date" id="filtroDataFim" class="form-control">
+    </div>
+    <div class="col-md-3">
+      <label for="barraPesquisa" class="form-label">Busca Geral</label>
+      <input type="text" id="barraPesquisa" class="form-control" placeholder="Pesquisar em qualquer campo">
+    </div>
+  </div>
+
+  <button class="btn btn-primary mb-3" onclick="carregarReceitas()">Buscar</button>
+  <button class="btn btn-info mb-3" onclick="imprimirTabelaComLayout()">Imprimir</button>
+  <a class="btn btn-custom" href="#" onclick="javascript:
+    var tok;
+    document.cookie.split(';').forEach(function(el) {
+      if (el.trim().startsWith('erpusertoken')) { 
+        tok = el.trim().split('=')[1];
+      }
+    });
+    window.open(`https://guig-a.github.io/relatorio-Contas/?erpusertoken=${tok}`, '_blank');
+  ">Relatório de Contas</a>
+
+  <div id="indiceItens" class="mb-3"></div>
+
+  <table class="table table-bordered table-hover table-striped">
+    <thead class="table-light">
+    <tr>
+      <th>NF</th>
+      <th>Dt. Competência</th>
+      <th>Razão Social</th>
+      <th>Plano de Contas</th>
+      <th>Total</th>
+      <th>Total Pago</th>
+      <th>Dt. Vencimento</th>
+      <th>Dt. Quitação</th>
+      <th>Conta Bancária</th>
+      <th>Status</th>
+    </tr>
+    </thead>
+    <tbody id="tabelaReceita"></tbody>
+    <tfoot id="tabelaFooter"></tfoot>
+  </table>
+
+  <div class="pagination-controls">
+    <div>
+      Resultados por Página
+      <select id="itensPorPagina" onchange="renderizarTabela()">
+        <option value="15" selected>15</option>
+        <option value="25">25</option>
+        <option value="50">50</option>
+        <option value="100">100</option>
+        <option value="0">Todos</option>
+      </select>
+    </div>
+    <div>
+      <button class="btn btn-outline-primary" onclick="mudarPagina(-1)" disabled><</button>
+      <span id="paginaAtual"></span>
+      <button class="btn btn-outline-primary" onclick="mudarPagina(1)">></button>
+    </div>
+  </div>
+</div>
+
+<script>
+  // Extrair o token da URL
+  const urlParams = new URLSearchParams(window.location.search);
+  const token = urlParams.get('erpusertoken') || 'token-nao-encontrado';
+
+  let todosOsItens = [];
+  let paginaAtual = 1;
+  let itensPorPagina = 15;
+
+  function carregarReceitas() {
+    todosOsItens = [];
+    let paginaApi = 0;
+    const itensPorPaginaApi = 100;
+
+    function buscarPagina() {
+      const filtroDataTipo = $('#filtroDataTipo').val();
+      const dataInicio = $('#filtroDataInicio').val() && filtroDataTipo ? moment($('#filtroDataInicio').val()).format('YYYY-MM-DD') + 'T00:00:00.000Z' : null;
+      const dataFim = $('#filtroDataFim').val() && filtroDataTipo ? moment($('#filtroDataFim').val()).format('YYYY-MM-DD') + 'T23:59:59.999Z' : null;
+
+      const requestBody = {
+        pagina: { number: paginaApi, lenght: itensPorPaginaApi },
+        order: { ascending: false, fieldName: "CodigoSequencial" },
+        filtro: {
+          ehPesquisaSimples: false,
+          tipoLancamento: 1,
+          situacaoLancamento: 0,
+          cliente: "",
+          clienteId: "",
+          periodoData: 10
+        }
+      };
+
+      if (filtroDataTipo && (dataInicio || dataFim)) {
+        requestBody.filtro.filtrarPor = filtroDataTipo;
+        requestBody.filtro.dataInicial = dataInicio || '1900-01-01T00:00:00.000Z';
+        requestBody.filtro.dataFinal = dataFim || '2100-12-31T23:59:59.999Z';
+      }
+
+      $.ajax({
+        url: 'https://novaapi-lb2.vendaerp.com.br/v3/lancamentos/lancamentos',
+        method: 'POST',
+        contentType: 'application/json',
+        headers: {
+          'Authorization': 'Bearer ' + token,
+          'Authorization-Token': 'TOKEN_AQUI',
+          'User': 'erp@lumiar.com.br',
+          'App': 'relatorio'
+        },
+        data: JSON.stringify(requestBody),
+        success: function (res) {
+          console.log('Resposta da API (página ' + paginaApi + '):', res);
+          const itens = res?.Data?.Itens || [];
+          console.log('Itens recebidos:', itens);
+          todosOsItens = todosOsItens.concat(itens);
+
+          if (itens.length === itensPorPaginaApi) {
+            paginaApi++;
+            buscarPagina();
+          } else {
+            console.log('Todos os itens carregados:', todosOsItens);
+            paginaAtual = 1;
+            renderizarTabela();
+          }
+        },
+        error: function (xhr, status, error) {
+          console.error("Erro:", status, error);
+        }
+      });
+    }
+
+    buscarPagina();
+  }
+
+  function renderizarTabela() {
+    const filtroCliente = $('#filtroCliente').val().toLowerCase();
+    const filtroStatus = $('#filtroStatus').val();
+    const filtroPlanoDeContas = $('#filtroPlanoDeContas').val().toLowerCase();
+    const filtroContaBancaria = $('#filtroContaBancaria').val().toLowerCase();
+    const barraPesquisa = $('#barraPesquisa').val().toLowerCase();
+    const dataInicio = $('#filtroDataInicio').val() ? moment($('#filtroDataInicio').val()).startOf('day') : null;
+    const dataFim = $('#filtroDataFim').val() ? moment($('#filtroDataFim').val()).endOf('day') : null;
+    const filtroDataTipo = $('#filtroDataTipo').val();
+    const tbody = $('#tabelaReceita');
+    const tfoot = $('#tabelaFooter');
+    const indiceItens = $('#indiceItens');
+    itensPorPagina = parseInt($('#itensPorPagina').val()) || 0;
+
+    tbody.empty();
+    tfoot.empty();
+    indiceItens.empty();
+
+    let totalGeral = 0;
+    let totalPagoGeral = 0;
+    const hoje = moment().startOf('day');
+
+    const resultadosFiltrados = todosOsItens.filter(item => {
+      const status = mapearStatus(item, hoje);
+      const cliente = item.Cliente?.toLowerCase() || '';
+      const planoDeContas = item.PlanoDeConta?.toLowerCase() || '';
+      const contaBancaria = item.Banco?.toLowerCase() || '';
+      const numeroDocumento = (item.NumeroDocumento || '').toString().toLowerCase();
+      const dataSelecionada = filtroDataTipo && item[filtroDataTipo] ? moment(item[filtroDataTipo], 'DD/MM/YYYY') : null;
+
+      const clienteOK = filtroCliente === '' || cliente.includes(filtroCliente);
+      const statusOK = filtroStatus === '' || status === filtroStatus;
+      const planoOK = filtroPlanoDeContas === '' || planoDeContas.includes(filtroPlanoDeContas);
+      const contaOK = filtroContaBancaria === '' || contaBancaria.includes(filtroContaBancaria);
+      const pesquisaGeralOK =
+        barraPesquisa === '' ||
+        cliente.includes(barraPesquisa) ||
+        planoDeContas.includes(barraPesquisa) ||
+        contaBancaria.includes(barraPesquisa) ||
+        numeroDocumento.includes(barraPesquisa);
+      const dataOK = !filtroDataTipo || !dataSelecionada || (
+        (!dataInicio || dataSelecionada.isSameOrAfter(dataInicio)) &&
+        (!dataFim || dataSelecionada.isSameOrBefore(dataFim))
+      );
+
+      return clienteOK && statusOK && planoOK && contaOK && pesquisaGeralOK && dataOK;
+    });
+
+    if (resultadosFiltrados.length === 0) {
+      tbody.append('<tr><td colspan="10" class="text-center">Nenhum resultado encontrado.</td></tr>');
+      indiceItens.text('Mostrando 0 de ' + todosOsItens.length + ' itens');
+      atualizarPaginacao(0);
+      return;
+    }
+
+    // Paginação
+    const totalItensFiltrados = resultadosFiltrados.length;
+    const totalPaginas = itensPorPagina === 0 ? 1 : Math.ceil(totalItensFiltrados / itensPorPagina);
+    if (paginaAtual < 1) paginaAtual = 1;
+    if (paginaAtual > totalPaginas) paginaAtual = totalPaginas;
+
+    const inicio = itensPorPagina === 0 ? 0 : (paginaAtual - 1) * itensPorPagina;
+    const fim = itensPorPagina === 0 ? totalItensFiltrados : Math.min(inicio + itensPorPagina, totalItensFiltrados);
+    const itensPagina = resultadosFiltrados.slice(inicio, fim);
+
+    indiceItens.text('Mostrando ' + (fim - inicio) + ' de ' + totalItensFiltrados + ' itens (total carregado: ' + todosOsItens.length + ')');
+
+    itensPagina.forEach(item => {
+      const status = mapearStatus(item, hoje);
+      totalGeral += (item.Valor || 0);
+      totalPagoGeral += (item.ValorPago || 0);
+
+      tbody.append(`
+        <tr>
+          <td>${item.NumeroDocumento || '-'}</td>
+          <td>${item.DataCompetencia || '-'}</td>
+          <td>${item.Cliente || '-'}</td>
+          <td>${item.PlanoDeConta || '-'}</td>
+          <td>R$ ${formatarMoeda(item.Valor)}</td>
+          <td>R$ ${formatarMoeda(item.ValorPago)}</td>
+          <td>${item.DataVencimento || '-'}</td>
+          <td>${item.DataPagamento || '-'}</td>
+          <td>${item.Banco || '-'}</td>
+          <td>${status}</td>
+        </tr>
+      `);
+    });
+
+    tfoot.append(`
+      <tr>
+        <td colspan="4" style="text-align:right; font-weight: bold;">Total</td>
+        <td style="font-weight: bold;">R$ ${formatarMoeda(totalGeral)}</td>
+        <td style="font-weight: bold;">R$ ${formatarMoeda(totalPagoGeral)}</td>
+        <td colspan="4"></td>
+      </tr>
+    `);
+
+    atualizarPaginacao(totalPaginas);
+  }
+
+  function atualizarPaginacao(totalPaginas) {
+    const prevButton = $('.pagination-controls button:first');
+    const nextButton = $('.pagination-controls button:last');
+    const paginaAtualSpan = $('#paginaAtual');
+
+    paginaAtualSpan.text(paginaAtual + ' / ' + (totalPaginas || 1));
+    prevButton.prop('disabled', paginaAtual <= 1);
+    nextButton.prop('disabled', paginaAtual >= totalPaginas);
+  }
+
+  function mudarPagina(direcao) {
+    paginaAtual += direcao;
+    renderizarTabela();
+  }
+
+  function formatarMoeda(valor) {
+    return (valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+  }
+
+  function mapearStatus(item, hoje) {
+    if (item.Pago) return 'Liquidado';
+
+    const venc = moment(item.DataVencimento, 'DD/MM/YYYY', true);
+    if (!venc.isValid()) return 'Data Inválida';
+
+    if (venc.isBefore(hoje)) return 'Em Atraso';
+    if (venc.isSame(hoje)) return 'Vencendo Hoje';
+    return 'Em Aberto';
+  }
+
+  $('#filtroCliente, #filtroStatus, #filtroPlanoDeContas, #filtroContaBancaria, #barraPesquisa, #filtroDataInicio, #filtroDataFim, #filtroDataTipo')
+    .on('input change', function() {
+      paginaAtual = 1;
+      renderizarTabela();
+    });
+
+  function gerarConteudoImpressao() {
+    const hoje = moment().startOf('day');
+    const filtroCliente = $('#filtroCliente').val().toLowerCase();
+    const filtroStatus = $('#filtroStatus').val();
+    const filtroPlanoDeContas = $('#filtroPlanoDeContas').val().toLowerCase();
+    const filtroContaBancaria = $('#filtroContaBancaria').val().toLowerCase();
+    const barraPesquisa = $('#barraPesquisa').val().toLowerCase();
+    const dataInicio = $('#filtroDataInicio').val() ? moment($('#filtroDataInicio').val()).startOf('day') : null;
+    const dataFim = $('#filtroDataFim').val() ? moment($('#filtroDataFim').val()).endOf('day') : null;
+    const filtroDataTipo = $('#filtroDataTipo').val();
+
+    const resultadosFiltrados = todosOsItens.filter(item => {
+      const status = mapearStatus(item, hoje);
+      const cliente = item.Cliente?.toLowerCase() || '';
+      const planoDeContas = item.PlanoDeConta?.toLowerCase() || '';
+      const contaBancaria = item.Banco?.toLowerCase() || '';
+      const numeroDocumento = (item.NumeroDocumento || '').toString().toLowerCase();
+      const dataSelecionada = filtroDataTipo && item[filtroDataTipo] ? moment(item[filtroDataTipo], 'DD/MM/YYYY') : null;
+
+      const clienteOK = filtroCliente === '' || cliente.includes(filtroCliente);
+      const statusOK = filtroStatus === '' || status === filtroStatus;
+      const planoOK = filtroPlanoDeContas === '' || planoDeContas.includes(filtroPlanoDeContas);
+      const contaOK = filtroContaBancaria === '' || contaBancaria.includes(filtroContaBancaria);
+      const pesquisaGeralOK =
+        barraPesquisa === '' ||
+        cliente.includes(barraPesquisa) ||
+        planoDeContas.includes(barraPesquisa) ||
+        contaBancaria.includes(barraPesquisa) ||
+        numeroDocumento.includes(barraPesquisa);
+      const dataOK = !filtroDataTipo || !dataSelecionada || (
+        (!dataInicio || dataSelecionada.isSameOrAfter(dataInicio)) &&
+        (!dataFim || dataSelecionada.isSameOrBefore(dataFim))
+      );
+
+      return clienteOK && statusOK && planoOK && contaOK && pesquisaGeralOK && dataOK;
+    });
+
+    if (resultadosFiltrados.length === 0) {
+      return '<p>Nenhum resultado encontrado para impressão.</p>';
+    }
+
+    const receitasPorCliente = {};
+    resultadosFiltrados.forEach(item => {
+      const cliente = item.Cliente || 'CONSUMIDOR NÃO IDENTIFICADO';
+      if (!receitasPorCliente[cliente]) {
+        receitasPorCliente[cliente] = [];
+      }
+      receitasPorCliente[cliente].push(item);
+    });
+
+    let conteudoImpressao = '<div><h2>Relatório de Receita</h2>';
+    let totalGeral = 0;
+    let totalPagoGeral = 0;
+
+    for (const cliente in receitasPorCliente) {
+      const receitasDoCliente = receitasPorCliente[cliente];
+      let totalCliente = 0;
+      let totalPagoCliente = 0;
+
+      conteudoImpressao += `<p style="font-weight: bold; border-top: 2px solid black; padding-top: 5px;">${cliente}</p>`;
+      conteudoImpressao += '<table style="width: 100%; border-collapse: collapse;">';
+      conteudoImpressao += '<thead><tr><th style="border-top: 1px solid black; border-bottom: 1px solid black; border-left: none; border-right: none; padding: 3px;">Nota Fiscal</th><th style="border-top: 1px solid black; border-bottom: 1px solid black; border-left: none; border-right: none; padding: 3px;">Comp.</th><th style="border-top: 1px solid black; border-bottom: 1px solid black; border-left: none; border-right: none; padding: 3px;">P. Conta</th><th style="border-top: 1px solid black; border-bottom: 1px solid black; border-left: none; border-right: none; padding: 3px;">Total</th><th style="border-top: 1px solid black; border-bottom: 1px solid black; border-left: none; border-right: none; padding: 3px;">Pago</th><th style="border-top: 1px solid black; border-bottom: 1px solid black; border-left: none; border-right: none; padding: 3px;">Venc.</th><th style="border-top: 1px solid black; border-bottom: 1px solid black; border-left: none; border-right: none; padding: 3px;">Receb.</th><th style="border-top: 1px solid black; border-bottom: 1px solid black; border-left: none; border-right: none; padding: 3px;">Banco</th><th style="border-top: 1px solid black; border-bottom: 1px solid black; border-left: none; border-right: none; padding: 3px;">Status</th></tr></thead><tbody>';
+
+      receitasDoCliente.forEach(item => {
+        const status = mapearStatus(item, hoje);
+        totalCliente += (item.Valor || 0);
+        totalPagoCliente += (item.ValorPago || 0);
+
+        conteudoImpressao += `<tr><td style="border-top: none; border-left: none; border-right: none; padding: 3px;">${item.NumeroDocumento || '-'}</td><td style="border-top: none; border-left: none; border-right: none; padding: 3px;">${item.DataCompetencia || '-'}</td><td style="border-top: none; border-left: none; border-right: none; padding: 3px;">${item.PlanoDeConta || '-'}</td><td style="border-top: none; border-left: none; border-right: none; padding: 3px;">R$ ${formatarMoeda(item.Valor)}</td><td style="border-top: none; border-left: none; border-right: none; padding: 3px;">R$ ${formatarMoeda(item.ValorPago)}</td><td style="border-top: none; border-left: none; border-right: none; padding: 3px;">${item.DataVencimento || '-'}</td><td style="border-top: none; border-left: none; border-right: none; padding: 3px;">${item.DataPagamento || '-'}</td><td style="border-top: none; border-left: none; border-right: none; padding: 3px;">${item.Banco || '-'}</td><td style="border-top: none; border-left: none; border-right: none; padding: 3px;">${status}</td></tr>`;
+      });
+
+      conteudoImpressao += `</tbody><tfoot><tr><td colspan="3" style="text-align:right; font-weight: bold; border-top: 1px solid black; border-bottom: 1px solid black; border-left: none; border-right: none; padding: 3px;">Total Cliente:</td><td style="font-weight: bold; border-top: 1px solid black; border-bottom: 1px solid black; border-left: none; border-right: none; padding: 3px;">R$ ${formatarMoeda(totalCliente)}</td><td style="font-weight: bold; border-top: 1px solid black; border-bottom: 1px solid black; border-left: none; border-right: none; padding: 3px;">R$ ${formatarMoeda(totalPagoCliente)}</td><td colspan="4" style="border-top: 1px solid black; border-bottom: 1px solid black; border-left: none; border-right: none; padding: 3px;"></td></tr></tfoot></table><br>`;
+
+      totalGeral += totalCliente;
+      totalPagoGeral += totalPagoCliente;
+    }
+
+    conteudoImpressao += `<p style="text-align:right; font-weight: bold;">Total Geral: R$ ${formatarMoeda(totalGeral)}</p>`;
+    conteudoImpressao += `<p style="text-align:right; font-weight: bold;">Total Pago Geral: R$ ${formatarMoeda(totalPagoGeral)}</p></div>`;
+
+    return conteudoImpressao;
+  }
+
+  function imprimirTabelaComLayout() {
+    const elementosParaEsconder = document.querySelectorAll('body > div > *:not(.container-impressao)');
+    elementosParaEsconder.forEach(elemento => {
+      elemento.style.display = 'none';
+    });
+
+    const containerImpressao = document.createElement('div');
+    containerImpressao.className = 'container-impressao';
+    containerImpressao.innerHTML = gerarConteudoImpressao();
+    document.body.appendChild(containerImpressao);
+
+    window.print();
+
+    document.body.removeChild(containerImpressao);
+    elementosParaEsconder.forEach(elemento => {
+      elemento.style.display = '';
+    });
+  }
+</script>
+</body>
+</html>
