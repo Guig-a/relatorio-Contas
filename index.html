@@ -35,6 +35,9 @@
       .container-impressao {
         font-size: 10px;
         line-height: 1.2;
+
+        padding-bottom: 30mm; /* Garante que o conteúdo não invada a margem inferior */
+    box-sizing: border-box; /* Inclui o padding na altura total */
       }
       .container-impressao table {
         width: 100%;
@@ -50,27 +53,28 @@
         display: none;
       }
 /* assinatura */
-    @page {
-    margin: 15mm 10mm 40mm 10mm; /* Aumenta a margem inferior para as assinaturas */
+   @page {
+    margin: 15mm 10mm 30mm 10mm; /* Margem inferior aumentada para 30mm */
   }
   .signature-section {
     position: fixed;
-    bottom: 0mm; /* Posiciona as assinaturas dentro da margem inferior */
+    bottom: 5mm; /* Posiciona as assinaturas 5mm acima da borda inferior */
     width: 100%;
     display: flex;
     justify-content: space-between;
     font-size: 10px;
-    left: 10mm; /* Alinha com a margem esquerda */
-    right: 10mm; /* Alinha com a margem direita */
+    left: 10mm;
+    right: 10mm;
   }
   .signature-section div {
     text-align: center;
   }
   .signature-section .signature-line {
     border-top: 1px solid black;
-    width: 150px; /* Linha um pouco menor para caber na margem */
+    width: 150px;
     margin-top: 10px;
   }
+}
     }
   </style>
 </head>
