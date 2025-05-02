@@ -51,10 +51,10 @@
       }
 /* assinatura */
   @page {
-    margin: 10mm; /* Mantém margens mínimas */
+    margin: 10mm; /* Margens mínimas */
   }
   .signature-section {
-    margin-top: 5mm; /* Espaço entre o conteúdo e as assinaturas */
+    margin-top: 5mm; /* Espaço entre os totais e as assinaturas */
     display: flex;
     justify-content: space-between;
     font-size: 8px; /* Fonte menor */
@@ -459,7 +459,7 @@
     conteudoImpressao += `<p style="text-align:right; font-weight: bold;">Total Geral: R$ ${formatarMoeda(totalGeral)}</p>`;
     conteudoImpressao += `<p style="text-align:right; font-weight: bold;">Total Pago Geral: R$ ${formatarMoeda(totalPagoGeral)}</p></div>`;
 
-    // Adicionar seção de assinaturas na margem inferior de todas as páginas
+    // Adicionar seção de assinaturas apenas após os totais gerais, na última página
   conteudoImpressao += `
     <div class="signature-section">
       <div>
