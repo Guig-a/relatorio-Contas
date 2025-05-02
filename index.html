@@ -50,21 +50,27 @@
         display: none;
       }
 /* assinatura */
-      .signature-section {
-    position: fixed;
-    bottom: 20px;
-    width: 100%;
+     .signature-section {
+    display: none; /* Esconde por padrão em todas as páginas */
+  }
+  .signature-section-last {
     display: flex;
     justify-content: space-between;
     font-size: 12px;
+    page-break-before: always; /* Força a seção a começar em uma nova página */
+    margin-top: 20px;
+    padding-top: 20px;
   }
-  .signature-section div {
+  .signature-section-last div {
     text-align: center;
   }
-  .signature-section .signature-line {
+  .signature-section-last .signature-line {
     border-top: 1px solid black;
     width: 200px;
     margin-top: 20px;
+  }
+  @page {
+    margin: 20mm; /* Garante margens suficientes para evitar cortes */
   }
     }
   </style>
@@ -455,9 +461,9 @@
     conteudoImpressao += `<p style="text-align:right; font-weight: bold;">Total Geral: R$ ${formatarMoeda(totalGeral)}</p>`;
     conteudoImpressao += `<p style="text-align:right; font-weight: bold;">Total Pago Geral: R$ ${formatarMoeda(totalPagoGeral)}</p></div>`;
 
-    // Adicionar seção de assinaturas
+    // Adicionar seção de assinaturas apenas na última página
   conteudoImpressao += `
-    <div class="signature-section">
+    <div class="signature-section-last">
       <div>
         <p>Emitido por</p>
         <div class="signature-line"></div>
