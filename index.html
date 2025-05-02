@@ -54,12 +54,12 @@
     display: none; /* Esconde por padrão em todas as páginas */
   }
   .signature-section-last {
+    position: absolute;
+    bottom: 20px;
+    width: 100%;
     display: flex;
     justify-content: space-between;
     font-size: 12px;
-    page-break-before: always; /* Força a seção a começar em uma nova página */
-    margin-top: 20px;
-    padding-top: 20px;
   }
   .signature-section-last div {
     text-align: center;
@@ -69,8 +69,11 @@
     width: 200px;
     margin-top: 20px;
   }
+  .signature-spacer {
+    height: 80px; /* Reserva espaço para evitar sobreposição */
+  }
   @page {
-    margin: 20mm; /* Garante margens suficientes para evitar cortes */
+    margin: 20mm; /* Garante margens suficientes */
   }
     }
   </style>
@@ -461,7 +464,8 @@
     conteudoImpressao += `<p style="text-align:right; font-weight: bold;">Total Geral: R$ ${formatarMoeda(totalGeral)}</p>`;
     conteudoImpressao += `<p style="text-align:right; font-weight: bold;">Total Pago Geral: R$ ${formatarMoeda(totalPagoGeral)}</p></div>`;
 
-    // Adicionar seção de assinaturas apenas na última página
+    // Adicionar espaço reservado e seção de assinaturas na última página
+  conteudoImpressao += `<div class="signature-spacer"></div>`;
   conteudoImpressao += `
     <div class="signature-section-last">
       <div>
