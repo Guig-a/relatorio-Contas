@@ -49,6 +49,23 @@
       .pagination-controls, #indiceItens {
         display: none;
       }
+/* assinatura */
+      .signature-section {
+    position: fixed;
+    bottom: 20px;
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+  }
+  .signature-section div {
+    text-align: center;
+  }
+  .signature-section .signature-line {
+    border-top: 1px solid black;
+    width: 200px;
+    margin-top: 20px;
+  }
     }
   </style>
 </head>
@@ -438,6 +455,22 @@
     conteudoImpressao += `<p style="text-align:right; font-weight: bold;">Total Geral: R$ ${formatarMoeda(totalGeral)}</p>`;
     conteudoImpressao += `<p style="text-align:right; font-weight: bold;">Total Pago Geral: R$ ${formatarMoeda(totalPagoGeral)}</p></div>`;
 
+    // Adicionar seção de assinaturas
+  conteudoImpressao += `
+    <div class="signature-section">
+      <div>
+        <p>Emitido por</p>
+        <div class="signature-line"></div>
+      </div>
+      <div>
+        <p>Aprovado por</p>
+        <div class="signature-line"></div>
+      </div>
+    </div>
+  `;
+
+  conteudoImpressao += `</div>`;
+    
     return conteudoImpressao;
   }
 
