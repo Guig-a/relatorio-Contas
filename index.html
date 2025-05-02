@@ -107,15 +107,7 @@
 
   <button class="btn btn-primary mb-3" onclick="carregarReceitas()">Buscar</button>
   <button class="btn btn-info mb-3" onclick="imprimirTabelaComLayout()">Imprimir</button>
-  <a class="btn btn-custom" href="#" onclick="javascript:
-    var tok;
-    document.cookie.split(';').forEach(function(el) {
-      if (el.trim().startsWith('erpusertoken')) { 
-        tok = el.trim().split('=')[1];
-      }
-    });
-    window.open(`https://guig-a.github.io/relatorio-Contas/?erpusertoken=${tok}`, '_blank');
-  ">Relatório de Contas</a>
+  
 
   <div id="indiceItens" class="mb-3"></div>
 
