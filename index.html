@@ -35,9 +35,6 @@
       .container-impressao {
         font-size: 10px;
         line-height: 1.2;
-
-        padding-bottom: 5mm; /* Garante que o conteúdo não invada a margem inferior */
-    box-sizing: border-box; /* Inclui o padding na altura total */
       }
       .container-impressao table {
         width: 100%;
@@ -54,28 +51,24 @@
       }
 /* assinatura */
   @page {
-    margin: 10mm; /* Margens mínimas em todos os lados */
+    margin: 10mm; /* Mantém margens mínimas */
   }
   .signature-section {
-    position: fixed;
-    bottom: 1mm; /* Posiciona as assinaturas muito perto da borda inferior */
-    width: 100%;
+    margin-top: 5mm; /* Espaço entre o conteúdo e as assinaturas */
     display: flex;
     justify-content: space-between;
-    font-size: 8px; /* Fonte menor para discrição */
-    opacity: 0.7; /* Opacidade reduzida para marca d'água (opcional) */
-    left: 10mm;
-    right: 10mm;
-    z-index: 10; /* Garante que as assinaturas fiquem acima do conteúdo */
+    font-size: 8px; /* Fonte menor */
+    opacity: 0.7; /* Efeito de marca d'água (opcional) */
     color: #333; /* Cor suave */
   }
   .signature-section div {
     text-align: center;
+    width: 50%; /* Divide o espaço igualmente */
   }
   .signature-section .signature-line {
     border-top: 1px solid #666; /* Linha suave */
     width: 120px; /* Linha menor */
-    margin-top: 5px; /* Menos espaço entre texto e linha */
+    margin: 5px auto 0 auto; /* Centraliza a linha e adiciona espaço acima */
   }
     }
   </style>
