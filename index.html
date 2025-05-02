@@ -50,30 +50,26 @@
         display: none;
       }
 /* assinatura */
-     .signature-section {
-    display: none; /* Esconde por padrão em todas as páginas */
+    @page {
+    margin: 15mm 10mm 40mm 10mm; /* Aumenta a margem inferior para as assinaturas */
   }
-  .signature-section-last {
-    position: absolute;
-    bottom: 20px;
+  .signature-section {
+    position: fixed;
+    bottom: 5mm; /* Posiciona as assinaturas dentro da margem inferior */
     width: 100%;
     display: flex;
     justify-content: space-between;
-    font-size: 12px;
+    font-size: 10px;
+    left: 10mm; /* Alinha com a margem esquerda */
+    right: 10mm; /* Alinha com a margem direita */
   }
-  .signature-section-last div {
+  .signature-section div {
     text-align: center;
   }
-  .signature-section-last .signature-line {
+  .signature-section .signature-line {
     border-top: 1px solid black;
-    width: 200px;
-    margin-top: 20px;
-  }
-  .signature-spacer {
-    height: 80px; /* Reserva espaço para evitar sobreposição */
-  }
-  @page {
-    margin: 20mm; /* Garante margens suficientes */
+    width: 150px; /* Linha um pouco menor para caber na margem */
+    margin-top: 10px;
   }
     }
   </style>
@@ -464,10 +460,9 @@
     conteudoImpressao += `<p style="text-align:right; font-weight: bold;">Total Geral: R$ ${formatarMoeda(totalGeral)}</p>`;
     conteudoImpressao += `<p style="text-align:right; font-weight: bold;">Total Pago Geral: R$ ${formatarMoeda(totalPagoGeral)}</p></div>`;
 
-    // Adicionar espaço reservado e seção de assinaturas na última página
-  conteudoImpressao += `<div class="signature-spacer"></div>`;
+    // Adicionar seção de assinaturas na margem inferior de todas as páginas
   conteudoImpressao += `
-    <div class="signature-section-last">
+    <div class="signature-section">
       <div>
         <p>Emitido por</p>
         <div class="signature-line"></div>
